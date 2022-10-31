@@ -163,7 +163,7 @@ class IMMC():
 
 
 
-    def pick_object(self,color):
+    def pick_object(self):
         moveit_commander.roscpp_initialize(sys.argv)
         #open gripper
         self.move_gripper("full_open")
@@ -232,21 +232,21 @@ def main():
 
             # Setting up the pickup location
 
-            robot_stading_offset=(0.0)
+            robot_stading_offset=(0,0)
             immc.movebase_client(immc.pickup_loc[0]+robot_stading_offset[0],immc.pickup_loc[1]+robot_stading_offset[1])
 
             current_job = immc.assign_job(2)
 
         elif current_job == immc.assign_job(2):
             rospy.loginfo("Grabbing object")
-            color = currentOrder.objects.pop(0)
-            immc.pick_object(color)
+            # color = currentOrder.objects.pop(0)
+            immc.pick_object()
             current_job = immc.assign_job(3)
 
         elif current_job == immc.assign_job(3):
             rospy.loginfo("Going to destination")
-            x_goal = currentOrder.desired_location.x
-            y_goal = currentOrder.desired_location.y
+            x_goal = current_val[1][0]
+            y_goal = current_val[1][1]
             immc.movebase_client(x_goal,y_goal)
             current_job = immc.assign_job(4)
 
@@ -257,7 +257,7 @@ def main():
 
         elif current_job == immc.assign_job(5):
             rospy.loginfo("Finishing order")
-            if not currentOrder.objects:
+            if not current_val[0]:
                 rospy.wait_for_service("/submit_order")
                 submit_order = rospy.ServiceProxy("/submit_order", SubmitOrder)
                 order_status = submit_order(current_id) #order_id
