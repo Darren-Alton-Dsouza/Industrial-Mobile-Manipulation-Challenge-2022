@@ -12,6 +12,8 @@ import moveit_commander
 import moveit_msgs.msg
 from gazebo_msgs.msg import ContactsState
 from gazebo_ros_link_attacher.srv import Attach
+from std_srvs.srv import Empty
+
 
 pick_up_location = (7.725, -8.355)
 
@@ -153,7 +155,7 @@ class IMMC():
         gripper_goal.trajectory = plan
         self.gripper_client.send_goal(gripper_goal)
         self.gripper_client.wait_for_result()
-        sleep(5)
+        # sleep(5)
 
 
     def move_arm(self,target_position):
@@ -166,7 +168,7 @@ class IMMC():
         robot1_goal.trajectory = plan
         self.robot1_client.send_goal(robot1_goal)
         self.robot1_client.wait_for_result()
-        sleep(5)
+        # sleep(5)
 
 
 
@@ -214,6 +216,17 @@ class IMMC():
         
         # When finished shut down moveit_commander.
         moveit_commander.roscpp_shutdown()
+
+    def clear_costmaps(self):
+        rospy.wait_for_service('/move_base/clear_costmaps')
+        try:
+            clear_cm = rospy.ServiceProxy('/move_base/clear_costmaps',Empty)
+            rospy.loginfo("Clearing Costmaps")
+            clear_cm()
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+
+
 
 def main():
     #pub = rospy.Publisher('chatter', String, queue_size=10)
@@ -263,6 +276,9 @@ def main():
             rospy.loginfo("Assigning job_{} to go".format(current_job))
 
         elif current_job == immc.assign_job(3):
+            # clear costmaps
+            immc.clear_costmaps()
+
             x_goal = current_val[1][0]
             y_goal = current_val[1][1]
 
