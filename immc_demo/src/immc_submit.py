@@ -185,12 +185,12 @@ class IMMC():
         self.move_arm("transportation")
 
 
-    def drop_object(self):
+    def drop_object(self,object_name):
         self.move_arm("pre_release")
 
         detach = rospy.ServiceProxy('/link_attacher_node/detach', Attach)
-        res = detach.call('green_cube0', 'base_link', 'robot', 'gripper_link')
-        res = detach.call('green_cube0', 'base_link', 'robot', 'gripper_link_sub')
+        res = detach.call(object_name, 'base_link', 'robot', 'gripper_link')
+        res = detach.call(object_name, 'base_link', 'robot', 'gripper_link_sub')
         
         self.move_gripper("full_open")
 
@@ -252,7 +252,7 @@ def main():
 
         elif current_job == immc.assign_job(4):
             rospy.loginfo("Releasing Object")
-            immc.drop_object()
+            immc.drop_object(current_sub_task)
             current_job = immc.assign_job(5)
 
         elif current_job == immc.assign_job(5):

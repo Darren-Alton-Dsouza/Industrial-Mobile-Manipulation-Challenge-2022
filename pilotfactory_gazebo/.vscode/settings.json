@@ -1,0 +1,11 @@
+{
+    "ros.distro": "noetic",
+    "python.autoComplete.extraPaths": [
+        "/home/ril/immc_ws/devel/lib/python3/dist-packages",
+        "/home/ril/turtlebot2_ws/devel/lib/python3/dist-packages",
+        "/home/ril/mukil/turtlebot2_ws/install/Project/lib/python3/dist-packages",
+        "/home/ril/turtlebot3_ws/devel/lib/python3/dist-packages",
+        "/home/ril/cobot-ur5_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
+}
