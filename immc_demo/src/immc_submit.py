@@ -28,13 +28,9 @@ class IMMC():
         self.distination_loc=(0,0)
         moveit_commander.roscpp_initialize(sys.argv)
         self.gripper_group = moveit_commander.MoveGroupCommander("gripper")
-        self.gripper_client= actionlib.SimpleActionClient(
-            'execute_trajectory',
-            moveit_msgs.msg.ExecuteTrajectoryAction)
+        self.gripper_client= actionlib.SimpleActionClient('execute_trajectory',moveit_msgs.msg.ExecuteTrajectoryAction)
         self.robot1_group = moveit_commander.MoveGroupCommander("arm")
-        self.robot1_client = actionlib.SimpleActionClient(
-            'execute_trajectory',
-            moveit_msgs.msg.ExecuteTrajectoryAction)
+        self.robot1_client = actionlib.SimpleActionClient('execute_trajectory',moveit_msgs.msg.ExecuteTrajectoryAction)
 
 
     def get_order(self):
@@ -42,7 +38,6 @@ class IMMC():
         try:
             pendingOrders = rospy.ServiceProxy('/pending_orders', PendingOrders)
             orderList = pendingOrders().pending_orders
-            # orderDict={}
             # print(orderList)
             color_cubes_count=[0,0,0] #r,g,b
             
@@ -52,8 +47,6 @@ class IMMC():
                 cube_name_with_count=[]
 
                 for cube in cube_list:
-                    # print(cube)
-
                     if cube[0] == 'r':
                         cube_name_with_count.append(cube+str(color_cubes_count[0]))
                         color_cubes_count[0]+=1
@@ -80,12 +73,10 @@ class IMMC():
     
     def get_pickup_loc(self,model_name):
         rospy.wait_for_service('/gazebo/get_model_state')
-        # print(model_name)
 
         try:
             ms= rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
             x=ms(model_name,'').pose.position.x
-            # print(x)
             y=ms(model_name,'').pose.position.y
 
             self.pickup_loc=(x,y)
@@ -155,8 +146,6 @@ class IMMC():
         gripper_goal.trajectory = plan
         self.gripper_client.send_goal(gripper_goal)
         self.gripper_client.wait_for_result()
-        # sleep(5)
-
 
     def move_arm(self,target_position):
         
@@ -168,14 +157,10 @@ class IMMC():
         robot1_goal.trajectory = plan
         self.robot1_client.send_goal(robot1_goal)
         self.robot1_client.wait_for_result()
-        # sleep(5)
-
-
-
 
     def pick_object(self,object_name):
         # moveit_commander.roscpp_initialize(sys.argv)
-        print("Inside Pick Object")
+        # print("Inside Pick Object")
         #open gripper
         self.move_gripper("full_open")
         rospy.loginfo("Gripper moved to 'full_open'")
@@ -215,7 +200,7 @@ class IMMC():
         self.move_arm("home")
         
         # When finished shut down moveit_commander.
-        moveit_commander.roscpp_shutdown()
+        # moveit_commander.roscpp_shutdown()
 
     def clear_costmaps(self):
         rospy.wait_for_service('/move_base/clear_costmaps')
@@ -229,12 +214,10 @@ class IMMC():
 
 
 def main():
-    #pub = rospy.Publisher('chatter', String, queue_size=10)
     rospy.init_node('mobile_arm', anonymous=True)
     rate = rospy.Rate(10) # 10hz
     immc=IMMC()
     current_job=immc.assign_job(0)
-    currentOrder= None
     rospy.loginfo_once(current_job)
 
     rospy.loginfo("Getting Order")
@@ -261,7 +244,6 @@ def main():
             immc.get_pickup_loc(current_sub_task)
 
             # Setting up the pickup location
-
             robot_stading_offset=(0.17,0)
             rospy.loginfo("Going to Pickup Point: ({},{})".format(immc.pickup_loc[0]+robot_stading_offset[0],immc.pickup_loc[1]+robot_stading_offset[1]))
             immc.movebase_client(immc.pickup_loc[0]+robot_stading_offset[0],immc.pickup_loc[1]+robot_stading_offset[1])
@@ -270,7 +252,6 @@ def main():
 
         elif current_job == immc.assign_job(2):
             rospy.loginfo("Grabbing object")
-            # color = currentOrder.objects.pop(0)
             immc.pick_object(current_sub_task)
             current_job = immc.assign_job(3)
             rospy.loginfo("Assigning job_{} to go".format(current_job))
@@ -300,9 +281,6 @@ def main():
 
         elif current_job == immc.assign_job(5):
             rospy.loginfo("Finishing order")
-            # print("Current_val:",current_val)
-            # print("not len(current_val[0])",not len(current_val[0]))
-            # print("current job:",current_job)
             if len(current_val[0])== 0:
                 print("inside if")
                 rospy.wait_for_service("/submit_order")
@@ -318,18 +296,12 @@ def main():
 
                 
             else:
-                # print("inside else")
                 current_job = immc.assign_job(1)
-                # print("current job:",current_job)
 
 
         else:
             rospy.logerr("NOT A VALID STATE IN THE STATE MACHINE")
 
-
-        #hello_str = "hello world %s" % rospy.get_time()
-        #rospy.loginfo(hello_str)
-        #pub.publish(hello_str)
         rate.sleep()
 
 if __name__ == '__main__':
