@@ -265,6 +265,14 @@ def main():
         elif current_job == immc.assign_job(3):
             x_goal = current_val[1][0]
             y_goal = current_val[1][1]
+
+            x_inter=7.6
+            y_inter=-6.4
+
+            # Setting intermediate point to avoid collisions
+            rospy.loginfo("Going to Intermediate Point ({},{})".format(x_inter,y_inter))
+            immc.movebase_client(x_inter,y_inter)
+            
             rospy.loginfo("Going to Destination Point: ({},{})".format(x_goal,y_goal))
             immc.movebase_client(x_goal,y_goal)
             current_job = immc.assign_job(4)
