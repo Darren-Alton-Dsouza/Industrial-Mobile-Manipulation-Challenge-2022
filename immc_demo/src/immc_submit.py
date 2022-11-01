@@ -24,6 +24,16 @@ class IMMC():
         self.orderDict={}
         self.pickup_loc=(0,0)
         self.distination_loc=(0,0)
+        moveit_commander.roscpp_initialize(sys.argv)
+        self.gripper_group = moveit_commander.MoveGroupCommander("gripper")
+        self.gripper_client= actionlib.SimpleActionClient(
+            'execute_trajectory',
+            moveit_msgs.msg.ExecuteTrajectoryAction)
+        self.robot1_group = moveit_commander.MoveGroupCommander("arm")
+        self.robot1_client = actionlib.SimpleActionClient(
+            'execute_trajectory',
+            moveit_msgs.msg.ExecuteTrajectoryAction)
+
 
     def get_order(self):
         rospy.wait_for_service('/pending_orders')
@@ -112,72 +122,78 @@ class IMMC():
             return client.get_result()
 
 
-    def attach_cube_to_gripper(self,contact):
+    def attach_cube_to_gripper(self,object_name,contact=None):
         rospy.wait_for_service('/link_attacher_node/attach')
         attach = rospy.ServiceProxy('/link_attacher_node/attach', Attach)
 
-        result = attach.call(contact.collision1_name.split("::")[0], contact.collision1_name.split("::")[1], contact.collision2_name.split("::")[0], contact.collision2_name.split("::")[1])
-        
+        # result = attach.call(contact.collision1_name.split("::")[0], contact.collision1_name.split("::")[1], contact.collision2_name.split("::")[0], contact.collision2_name.split("::")[1])
+        result = attach.call(object_name, 'base_link', 'robot', 'gripper_link')
+        result = attach.call(object_name, 'base_link', 'robot', 'gripper_link_sub')
         return result
 
-    def get_contacts(self,contacts_message):
+    def get_contacts(self,object_name,contacts_message=None):
         if (len(contacts_message.states) != 0):
             if ('gripper_link' or 'gripper_link_sub' in contacts_message.states[0].collision1_name) :
                 rospy.loginfo("Collision detected with %s." % contacts_message.states[0].collision2_name.split("::")[0])
-                self.attach_cube_to_gripper(contacts_message.states[0])
+                self.attach_cube_to_gripper(object_name)
             elif ('gripper_link' or 'gripper_link_sub' in contacts_message.states[0].collision2_name) :
                 rospy.loginfo("Collision detected with %s." % contacts_message.states[0].collision1_name.split("::")[0])
-                self.attach_cube_to_gripper(contacts_message.states[0])
+                self.attach_cube_to_gripper(object_name)
             else:
                 rospy.loginfo("Unknown collision")
 
 
     def move_gripper(self,target_position):
-        gripper_group = moveit_commander.MoveGroupCommander("gripper")
-        gripper_client= actionlib.SimpleActionClient(
-            'execute_trajectory',
-            moveit_msgs.msg.ExecuteTrajectoryAction)
-        gripper_client.wait_for_server()
+        
+        self.gripper_client.wait_for_server()
         rospy.loginfo('Execute Trajectory server is available for gripper')
-        gripper_group.set_named_target(target_position)
-        _, plan, _, _ = gripper_group.plan()
+        self.gripper_group.set_named_target(target_position)
+        _, plan, _, _ = self.gripper_group.plan()
         gripper_goal = moveit_msgs.msg.ExecuteTrajectoryGoal()
         gripper_goal.trajectory = plan
-        gripper_client.send_goal(gripper_goal)
-        gripper_client.wait_for_result()
+        self.gripper_client.send_goal(gripper_goal)
+        self.gripper_client.wait_for_result()
+        sleep(5)
 
 
     def move_arm(self,target_position):
-        robot1_group = moveit_commander.MoveGroupCommander("arm")
-        robot1_client = actionlib.SimpleActionClient(
-            'execute_trajectory',
-            moveit_msgs.msg.ExecuteTrajectoryAction)
-        robot1_client.wait_for_server()
+        
+        self.robot1_client.wait_for_server()
         rospy.loginfo('Execute Trajectory server is available for arm')
-        robot1_group.set_named_target(target_position)
-        _, plan, _, _ = robot1_group.plan()
+        self.robot1_group.set_named_target(target_position)
+        _, plan, _, _ = self.robot1_group.plan()
         robot1_goal = moveit_msgs.msg.ExecuteTrajectoryGoal()
         robot1_goal.trajectory = plan
-        robot1_client.send_goal(robot1_goal)
-        robot1_client.wait_for_result()
+        self.robot1_client.send_goal(robot1_goal)
+        self.robot1_client.wait_for_result()
+        sleep(5)
 
 
 
-    def pick_object(self):
-        moveit_commander.roscpp_initialize(sys.argv)
+
+    def pick_object(self,object_name):
+        # moveit_commander.roscpp_initialize(sys.argv)
+        print("Inside Pick Object")
         #open gripper
         self.move_gripper("full_open")
+        rospy.loginfo("Gripper moved to 'full_open'")
 
         #move the arm to the pre_grasp position
         self.move_arm("pre_grasp")
+        rospy.loginfo("Arm moved to 'pre_grasp'")
+
         
         #close the gripper (grasp the object)
         self.move_gripper("close")
+        rospy.loginfo("Gripper moved to 'close'")
+
         
         #fix grasping (attach cube to the gripper)
         try: 
-            contact_msg = rospy.wait_for_message('/gripper_contacts', ContactsState)
-            self.get_contacts(contact_msg)
+            # contact_msg = rospy.wait_for_message('/gripper_contacts', ContactsState)
+            # self.get_contacts(contact_msg)
+            rospy.loginfo("Gripping the cube:{}".format(object_name))
+            self.attach_cube_to_gripper(object_name)
         except:
             rospy.logwarn("grasp fix failed")
 
@@ -224,15 +240,17 @@ def main():
                 current_job = immc.assign_job(6)
 
         elif current_job == immc.assign_job(1):
-            rospy.loginfo("Going to Pickup Point")
+            # rospy.loginfo("Going to Pickup Point")
             if len(current_val[0])>1:
                 print("Multiple delivery in an ID")
             current_sub_task=current_val[0].pop(0)
+            rospy.loginfo("Current Cube:{}".format(current_sub_task))
             immc.get_pickup_loc(current_sub_task)
 
             # Setting up the pickup location
 
-            robot_stading_offset=(0,0)
+            robot_stading_offset=(0.17,0)
+            rospy.loginfo("Going to Pickup Point: ({},{})".format(immc.pickup_loc[0]+robot_stading_offset[0],immc.pickup_loc[1]+robot_stading_offset[1]))
             immc.movebase_client(immc.pickup_loc[0]+robot_stading_offset[0],immc.pickup_loc[1]+robot_stading_offset[1])
 
             current_job = immc.assign_job(2)
@@ -240,13 +258,14 @@ def main():
         elif current_job == immc.assign_job(2):
             rospy.loginfo("Grabbing object")
             # color = currentOrder.objects.pop(0)
-            immc.pick_object()
+            immc.pick_object(current_sub_task)
             current_job = immc.assign_job(3)
+            rospy.loginfo("Assigning job_{} to go".format(current_job))
 
         elif current_job == immc.assign_job(3):
-            rospy.loginfo("Going to destination")
             x_goal = current_val[1][0]
             y_goal = current_val[1][1]
+            rospy.loginfo("Going to Destination Point: ({},{})".format(x_goal,y_goal))
             immc.movebase_client(x_goal,y_goal)
             current_job = immc.assign_job(4)
 
@@ -257,7 +276,11 @@ def main():
 
         elif current_job == immc.assign_job(5):
             rospy.loginfo("Finishing order")
-            if not current_val[0]:
+            # print("Current_val:",current_val)
+            # print("not len(current_val[0])",not len(current_val[0]))
+            # print("current job:",current_job)
+            if len(current_val[0])== 0:
+                print("inside if")
                 rospy.wait_for_service("/submit_order")
                 submit_order = rospy.ServiceProxy("/submit_order", SubmitOrder)
                 order_status = submit_order(current_id) #order_id
@@ -265,14 +288,15 @@ def main():
                     rospy.loginfo("Order finished")
                 else:
                     rospy.logerr("Order not accepted")
+                print("current job:",current_job)
 
-                if len(current_val[0])>0:
-                    current_job == immc.assign_job(1)
-                else:
-                    current_job == immc.assign_job(0)
+                current_job = immc.assign_job(0)
+
                 
             else:
-                current_job == immc.assign_job(1)
+                # print("inside else")
+                current_job = immc.assign_job(1)
+                # print("current job:",current_job)
 
 
         else:
